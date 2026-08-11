@@ -13,14 +13,10 @@ load_dotenv(BASE_DIR / ".env")
 
 # SECURITY
 SECRET_KEY = os.getenv("SECRET_KEY", "django-insecure-development-key")
-
-DEBUG = os.getenv("DEBUG", "True") == "True"
-
 ALLOWED_HOSTS = os.getenv(
     "ALLOWED_HOSTS",
-    "127.0.0.1,localhost"
+    "127.0.0.1,localhost,flutter-ecommerce-app-production.up.railway.app"
 ).split(",")
-
 
 # APPLICATIONS
 INSTALLED_APPS = [
