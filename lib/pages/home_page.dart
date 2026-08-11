@@ -18,7 +18,8 @@ class _HomePageState extends State<HomePage> {
   late Future<List> _subCategoriesFuture;
   
   
-  final String apiUrl = 'http://192.168.1.9:8000/api/products/';
+final String baseUrl = 'https://flutter-ecommerce-app-production.up.railway.app/api/';
+String get apiUrl => '${baseUrl}products/';
 
 int? _selectedCategoryId; // category used for filtering products
 int? _addProductCategoryId; // category selected when adding a product
