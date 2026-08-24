@@ -1,9 +1,5 @@
 from django.db import models
 
-
-
-
-
 class Category(models.Model):
     name = models.CharField(max_length=100)
 
@@ -37,10 +33,10 @@ class Product(models.Model):
         on_delete=models.CASCADE
     )
     subcategory = models.ForeignKey(
-    subCategory,
-    on_delete=models.CASCADE,
-    null=True,
-    blank=True
+        subCategory,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True
     )
 
     def __str__(self):

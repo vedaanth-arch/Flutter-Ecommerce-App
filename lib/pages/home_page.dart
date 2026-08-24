@@ -3,6 +3,10 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_application_1/models/product.dart';
+import 'package:flutter_application_1/services/auth_service.dart';
+import 'package:flutter_application_1/services/cart_service.dart';
+import 'package:flutter_application_1/pages/login_page.dart';
+import 'package:flutter_application_1/pages/cart_page.dart';
 import 'second_page.dart';
 
 class HomePage extends StatefulWidget {
@@ -23,6 +27,7 @@ String get apiUrl => '${baseUrl}products/';
 
 int? _selectedCategoryId; // category used for filtering products
 int? _addProductCategoryId; // category selected when adding a product
+int _cartItemCount = 0; // cart badge count
   final productNameController = TextEditingController();
   final priceController = TextEditingController();
   final descriptionController = TextEditingController();
@@ -36,6 +41,7 @@ int? _addProductCategoryId; // category selected when adding a product
     _productsFuture = _fetchProducts();
     _categoriesFuture = _fetchCategories();
     _subCategoriesFuture = _fetchSubCategories();
+    _loadCartCount();
   }
 
   // FETCH PRODUCTS
@@ -53,7 +59,8 @@ int? _addProductCategoryId; // category selected when adding a product
         );
       }
 
-      final response = await http.get(url);
+      final headers = await AuthService.authHeaders();
+      final response = await http.get(url, headers: headers);
 
       if (response.statusCode == 200) {
         List jsonResponse = json.decode(response.body);
@@ -72,8 +79,10 @@ int? _addProductCategoryId; // category selected when adding a product
   // FETCH CATEGORIES
   Future<List> _fetchCategories() async {
     try {
-      final response = await http.get(
+      final headers = await AuthService.authHeaders();
+    final response = await http.get(
         Uri.parse('${apiUrl}categories/'),
+        headers: headers,
       );
 
       if (response.statusCode == 200) {
@@ -88,8 +97,10 @@ int? _addProductCategoryId; // category selected when adding a product
   // FETCH SUB-CATEGORIES
   Future<List<dynamic>> _fetchSubCategories() async {
   try {
+    final headers = await AuthService.authHeaders();
     final response = await http.get(
       Uri.parse('${apiUrl}subcategories/'),
+      headers: headers,
     );
 
     if (response.statusCode == 200) {
@@ -113,11 +124,10 @@ int? _addProductCategoryId; // category selected when adding a product
   String description,
   int? categoryId,
 ) async {
+  final headers = await AuthService.authHeaders();
   final response = await http.post(
     Uri.parse(apiUrl),
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers: headers,
     body: jsonEncode({
       'name': name,
       'price': price,
@@ -138,11 +148,10 @@ int? _addProductCategoryId; // category selected when adding a product
 
   // ADD CATEGORY
   Future<void> addCategory(String name) async {
+    final headers = await AuthService.authHeaders();
     final response = await http.post(
       Uri.parse('${apiUrl}categories/'),
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: headers,
       body: jsonEncode({
         'name': name,
       }),
@@ -156,11 +165,10 @@ int? _addProductCategoryId; // category selected when adding a product
     }
   }
 Future addSubCategory(String name, int categoryId) async {
+  final headers = await AuthService.authHeaders();
   final response = await http.post(
     Uri.parse('${apiUrl}subcategories/'),
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers: headers,
     body: jsonEncode({
       'name': name,
       'category': categoryId,
@@ -176,6 +184,36 @@ Future addSubCategory(String name, int categoryId) async {
     );
   }
 }
+
+  // ============================================================
+  // LOAD CART COUNT — for the badge in the app bar
+  // ============================================================
+  Future<void> _loadCartCount() async {
+    final cart = await CartService.getCart();
+    if (mounted && cart != null) {
+      setState(() {
+        _cartItemCount = cart['total_items'] ?? 0;
+      });
+    }
+  }
+
+  // ============================================================
+  // ADD TO CART — called when user taps 'Add to Cart' button
+  // ============================================================
+  Future<void> _addToCart(int productId) async {
+    final result = await CartService.addToCart(productId: productId);
+    if (mounted && result != null) {
+      setState(() {
+        _cartItemCount = result['total_items'] ?? 0;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Added to cart!'),
+          duration: Duration(seconds: 1),
+        ),
+      );
+    }
+  }
 
   // REFRESH PRODUCTS
 Future<void> _refreshProducts() async {
@@ -201,15 +239,20 @@ Future<void> _refreshProducts() async {
               decoration: const BoxDecoration(
                 color: Colors.blue,
               ),
-              child: const Center(
-                child: Text(
-                  "Ecommerce App",
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.store, size: 48, color: Colors.white),
+                  const SizedBox(height: 8),
+                  const Text(
+                    "Ecommerce App",
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
                   ),
-                ),
+                ],
               ),
             ),
 
@@ -641,9 +684,24 @@ ExpansionTile(
           },
         );
       },
-    ),
-  ],
-),
+    ),              ],
+            ),
+
+            // LOGOUT
+            const Divider(),
+            ListTile(
+              leading: const Icon(Icons.logout, color: Colors.red),
+              title: const Text("Logout", style: TextStyle(color: Colors.red)),
+              onTap: () async {
+                await AuthService.logout();
+                if (context.mounted) {
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(builder: (context) => const LoginPage()),
+                  );
+                }
+              },
+            ),
           ],
         ),
       ),
@@ -654,6 +712,43 @@ backgroundColor: Colors.grey[100],
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         title: const Text("Products"),
         centerTitle: true,
+        actions: [
+          // CART ICON WITH BADGE
+          Stack(
+            children: [
+              IconButton(
+                icon: const Icon(Icons.shopping_cart),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const CartPage()),
+                  ).then((_) => _loadCartCount());  // refresh count when coming back
+                },
+              ),
+              // Badge (shows only if cart has items)
+              if (_cartItemCount > 0)
+                Positioned(
+                  right: 6,
+                  top: 6,
+                  child: Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: const BoxDecoration(
+                      color: Colors.red,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Text(
+                      '$_cartItemCount',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ],
       ),
 
       // BODY
@@ -802,11 +897,19 @@ backgroundColor: Colors.grey[100],
                           ),
                           const SizedBox(height: 12),
 
+                          const SizedBox(height: 12),
+
+                          // ADD TO CART BUTTON
                           SizedBox(
                             width: double.infinity,
-                            child: ElevatedButton(
-                              onPressed: () {},
-                              child: const Text("View Details"),
+                            child: ElevatedButton.icon(
+                              onPressed: () => _addToCart(product.id),
+                              icon: const Icon(Icons.add_shopping_cart),
+                              label: const Text("Add to Cart"),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.deepPurple,
+                                foregroundColor: Colors.white,
+                              ),
                             ),
                           ),
                         ],

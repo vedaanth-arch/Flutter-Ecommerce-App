@@ -5,3 +5,4 @@ mysqlclient
 python-dotenv
 gunicorn
 pymysql
+djangorestframework-simplejwt

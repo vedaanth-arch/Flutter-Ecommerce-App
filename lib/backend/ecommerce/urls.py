@@ -1,23 +1,35 @@
 """
-URL configuration for ecommerce project.
+MAIN URL CONFIGURATION
+======================
+This is the root URL router. It maps URL prefixes to each app's URLs.
 
-The `urlpatterns` list routes URLs to views. For more information please see:
-    https://docs.djangoproject.com/en/6.1/topics/http/urls/
-Examples:
-Function views
-    1. Add an import:  from my_app import views
-    2. Add a URL to urlpatterns:  path('', views.home, name='home')
-Class-based views
-    1. Add an import:  from other_app.views import Home
-    2. Add a URL to urlpatterns:  path('', Home.as_view(), name='home')
-Including another URLconf
-    1. Import the include() function: from django.urls import include, path
-    2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
+REQUEST FLOW EXAMPLE:
+  Flutter sends: POST https://myapp.com/api/auth/login/
+  1. Django matches "api/auth/" → accounts/urls.py
+  2. accounts/urls.py matches "login/" → login_view
+  3. login_view processes the request and returns JWT tokens
+
+FULL URL MAP:
+  /api/products/       → products app (products, categories, subcategories)
+  /api/auth/           → accounts app (register, login, profile, refresh)
+  /api/cart/           → orders app (shopping cart)
+  /api/orders/         → orders app (order placement & history)
+  /admin/              → Django admin panel
 """
+
 from django.contrib import admin
 from django.urls import path, include
 
 urlpatterns = [
-    path('admin/', admin.site.urls),
-    path('api/products/', include('products.urls')),  # <-- MUST BE A STRING IN QUOTES
+    path("admin/", admin.site.urls),
+
+    # Products API: /api/products/, /api/products/categories/, etc.
+    path("api/products/", include("products.urls")),
+
+    # Auth API: /api/auth/register/, /api/auth/login/, /api/auth/profile/
+    path("api/auth/", include("accounts.urls")),
+
+    # Cart & Orders API: /api/cart/, /api/orders/
+    path("api/cart/", include("orders.cart_urls")),
+    path("api/orders/", include("orders.order_urls")),
 ]

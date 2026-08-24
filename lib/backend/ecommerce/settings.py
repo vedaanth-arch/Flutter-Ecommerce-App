@@ -5,6 +5,7 @@ Django settings for ecommerce project.
 import os
 from pathlib import Path
 from dotenv import load_dotenv
+from datetime import timedelta
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -31,7 +32,10 @@ INSTALLED_APPS = [
 
     "corsheaders",
     "rest_framework",
+    "rest_framework_simplejwt",    # <-- NEW: JWT token support
     "products",
+    "accounts",                    # <-- NEW: our auth app
+    "orders",                      # <-- NEW: cart & orders app
 ]
 
 
@@ -55,7 +59,6 @@ CORS_ALLOW_ALL_ORIGINS = True
 # URLS
 ROOT_URLCONF = "ecommerce.urls"
 
-
 # TEMPLATES
 TEMPLATES = [
     {
@@ -72,9 +75,7 @@ TEMPLATES = [
     },
 ]
 
-
 WSGI_APPLICATION = "ecommerce.wsgi.application"
-
 
 # DATABASE
 DATABASES = {
@@ -90,36 +91,67 @@ DATABASES = {
 
 # PASSWORD VALIDATION
 AUTH_PASSWORD_VALIDATORS = [
-    {
-        "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator",
-    },
-    {
-        "NAME": "django.contrib.auth.password_validation.MinimumLengthValidator",
-    },
-    {
-        "NAME": "django.contrib.auth.password_validation.CommonPasswordValidator",
-    },
-    {
-        "NAME": "django.contrib.auth.password_validation.NumericPasswordValidator",
-    },
+    {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
+    {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
+    {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
+    {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
 ]
 
 
 # INTERNATIONALIZATION
 LANGUAGE_CODE = "en-us"
-
 TIME_ZONE = "UTC"
-
 USE_I18N = True
-
 USE_TZ = True
 
 
 # STATIC FILES
 STATIC_URL = "static/"
-
 STATIC_ROOT = BASE_DIR / "staticfiles"
-
 
 # EMAIL
 EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+
+
+# ============================================================
+# JWT SETTINGS  (NEW)
+# ============================================================
+# These control how JSON Web Tokens behave in our app.
+#
+# ACCESS tokens are short-lived (30 min) — used for API requests.
+# REFRESH tokens are long-lived (7 days) — used to get new access
+# tokens without re-login.
+#
+# When Flutter sends a request, it includes:
+#   Authorization: Bearer <access_token>
+# Django checks this token, identifies the user, and allows/blocks.
+# ============================================================
+
+REST_FRAMEWORK = {
+    # Use JWT as the default authentication method for ALL views.
+    # This means every API endpoint requires a valid JWT token
+    # unless we explicitly allow anonymous access.
+    "DEFAULT_AUTHENTICATION_CLASSES": (
+        "rest_framework_simplejwt.authentication.JWTAuthentication",
+    ),
+    "DEFAULT_PERMISSION_CLASSES": (
+        "rest_framework.permissions.IsAuthenticated",  # <-- default: must be logged in
+    ),
+}
+
+SIMPLE_JWT = {
+    # How long an access token lives (30 minutes)
+    # After this, Flutter must use the refresh token to get a new one
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=30),
+
+    # How long a refresh token lives (7 days)
+    # After this, user must log in again
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
+
+    # Where to look for the token in the HTTP request
+    # "Authorization: Bearer <token>" header
+    "AUTH_HEADER_TYPES": ("Bearer",),
+
+    # Token signing algorithm
+    "ALGORITHM": "HS256",
+}
